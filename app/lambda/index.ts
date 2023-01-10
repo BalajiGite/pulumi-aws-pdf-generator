@@ -15,9 +15,9 @@ const pdfLayer = new aws.lambda.LayerVersion("pdfLayer", {
   compatibleRuntimes: [aws.lambda.Runtime.NodeJS14dX],
 });
 
-const sqs = new aws.sdk.SQS({ region: "us-east-1" });
+const sqs = new aws.sdk.SQS({ region: "ap-southeast-2" });
 
-const generatePdf = async (content: string): Promise<Buffer> => {
+const generatePdf = async (content: string,startDate: string, endDate:string,site:string,frequency:string ): Promise<Buffer> => {
   const chromium = require('chrome-aws-lambda');
   let browser: any = undefined;
   try {
@@ -32,12 +32,53 @@ const generatePdf = async (content: string): Promise<Buffer> => {
 
     // create a new page
     const page = await browser.newPage();
-    const html = `<h1> Hi! Here is a copy of your PDF Content that you requested!</h1> <br/> <hr/> <p> ${content} </p>`;
+    //const html = `<h1> Hi! Here is a copy of your PDF Content that you requested!</h1> <br/> <hr/> <p> ${content} </p>`;
     // set the content of the page
-    await page.setContent(html);
-
+    //await page.setContent(html);
+    const url = `https://main.d15cryu619jhap.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${site}`
+    await page.goto(url, {waitUntil: 'networkidle2'})
+    await page.waitFor(2000);
+    await page.emulateMediaType('print')
+    await page.emulateMediaType('screen')
     // generate the pdf as a buffer and return it
-    return (await page.pdf({ format: "A4" })) as Buffer;
+    return (await page.pdf({ format: "A4",  printBackground: true })) as Buffer;
+  } catch (err) {
+    console.error(err);
+    throw err;
+  } finally {
+    if (browser !== undefined) {
+      // close the browser
+      await browser.close();
+    }
+  }
+};
+
+const generateImage = async (content: string,startDate: string, endDate:string,site:string,frequency:string ): Promise<Buffer> => {
+  const chromium = require('chrome-aws-lambda');
+  let browser: any = undefined;
+  try {
+    // launch a headless chrome instance
+    const executablePath = await chromium.executablePath;
+    browser = await chromium.puppeteer.launch({
+      args: chromium.args,
+      executablePath,
+      headless: chromium.headless,
+      defaultViewport: chromium.defaultViewport,
+    });
+
+    // create a new page
+    const page = await browser.newPage();
+    //const html = `<h1> Hi! Here is a copy of your PDF Content that you requested!</h1> <br/> <hr/> <p> ${content} </p>`;
+    // set the content of the page
+    //await page.setContent(html);
+    await page.setViewport({ width: 1000, height: 800 })
+    const url = `https://main.d15cryu619jhap.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${site}`
+    await page.goto(url, {waitUntil: 'networkidle2'})
+    await page.waitFor(2000);
+    await page.emulateMediaType('print')
+    await page.emulateMediaType('screen')
+    // generate the pdf as a buffer and return it
+    return await page.screenshot({  fullPage: true });
   } catch (err) {
     console.error(err);
     throw err;
@@ -53,15 +94,21 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
   callback: async (event: aws.sqs.QueueEvent) => {
     const processedEventPromises = event.Records.map(async (record) => {
       const { messageId, body, receiptHandle } = record;
-      const { content, email } = JSON.parse(body) as {
+      const {email, content,  startDate, endDate, site, frequency  } = JSON.parse(body) as {
         email: string;
         content: string;
+        startDate: string;
+        endDate:string;
+        site:string;
+        frequency:string;
       };
 
       // generate pdf
-      const pdf = await generatePdf(content);
-
+      const pdf = await generatePdf(content, startDate, endDate, site, frequency);
       const pdfName = `${messageId}.pdf`;
+
+      const png = await generateImage(content, startDate, endDate, site, frequency);
+      const pngName = `${messageId}.png`;
 
       // upload pdf to s3
       const s3 = new aws.sdk.S3({ region: "eu-central-1" });
@@ -72,21 +119,36 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         ContentType: "application/pdf",
       }).promise();
 
-      // generate signed url from s3 for public reads.
-      const signedUrl = await s3.getSignedUrlPromise("getObject", {
+    
+       // generate signed url from s3 for public reads.
+       const signedUrl = await s3.getSignedUrlPromise("getObject", {
         Bucket: pdfBucket.bucket.get(),
         Key: `pdf/${pdfName}`,
         Expires: 60 * 60 * 24 * 7, // 7 days
       });
 
+      await s3.putObject({
+        Bucket: pdfBucket.bucket.get(),
+        Key: `png/${pngName}`,
+        Body: png,
+        ContentType: "image/png",
+      }).promise();
+
+      // generate signed url from s3 for public reads.
+      const signedUrlPng = await s3.getSignedUrlPromise("getObject", {
+        Bucket: pdfBucket.bucket.get(),
+        Key: `png/${pngName}`,
+        Expires: 60 * 60 * 24 * 7, // 7 days
+      });
+
       // send email with signed url
-      const ses = new aws.sdk.SES({ region: "us-east-1" });
+      const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
       await ses.sendEmail({
         Source: senderEmail,
         Destination: { ToAddresses: [email], },
         Message: {
-          Body: { Html: { Charset: "UTF-8", Data: `Your pdf is ready. <a href="${signedUrl}">Download</a>`, }, },
-          Subject: { Data: "Your pdf is ready", Charset: "UTF-8" },
+          Body: { Html: { Charset: "UTF-8", Data: `Click on download for attached pdf. <a href="${signedUrl}">Download</a><br/><img src=\"${signedUrlPng}\"" alt="Mountain View" />` ,}, },
+          Subject: { Data: `${site}`, Charset: "UTF-8" },
         },
       }).promise();
 

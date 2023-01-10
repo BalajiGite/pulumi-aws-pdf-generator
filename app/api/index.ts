@@ -2,7 +2,7 @@ import * as awsx from "@pulumi/awsx";
 import * as aws from "@pulumi/aws";
 import { Queues } from "../sqs";
 
-const sqs = new aws.sdk.SQS({ region: "us-east-1" });
+const sqs = new aws.sdk.SQS({ region: "ap-southeast-2" });
 
 export const apiGateway = new awsx.apigateway.API("api", {
   routes: [
@@ -11,11 +11,11 @@ export const apiGateway = new awsx.apigateway.API("api", {
       method: "POST",
       eventHandler: async (event) => {
         // client passes email and content to add to pdf
-        const { email, content } = JSON.parse(event.body || "{}");
+        const { email, content, startDate, endDate, site, frequency } = JSON.parse(event.body || "{}");
 
         // construct message to send to SQS
         const sqsParams = {
-          MessageBody: JSON.stringify({ email, content }),
+          MessageBody: JSON.stringify({ email, content, startDate, endDate, site, frequency }),
           QueueUrl: Queues.pdfProcessingQueue.url.get(),
         };
 
