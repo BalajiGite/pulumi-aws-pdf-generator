@@ -155,7 +155,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         Source: senderEmail,
         Destination: { ToAddresses: [email], },
         Message: {
-          Body: { Html: { Charset: "UTF-8", Data: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a>to downlaod "${siteName}" PDF Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />` ,}, },
+          Body: { Html: { Charset: "UTF-8", Data: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here </a>to downlaod ${siteName} PDF Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />` ,}, },
           Subject: { Data: `${siteName}` + `${sub}`, Charset: "UTF-8" },
         },
       }).promise();
