@@ -40,7 +40,7 @@ const generatePdf = async (utilityType: string,startDate: string, endDate:string
     await page.emulateMediaType('print')
     await page.emulateMediaType('screen')
     // generate the pdf as a buffer and return it
-    return (await page.pdf({ format: "Letter", printBackground: true, scale: 1, margin:{top: "40px",  right: "20px", left: "20px"}})) as Buffer;
+    return (await page.pdf({ format: "Letter", printBackground: true, margin:{top: "0px",  right: "20px", left: "20px", bottom:"0px"}})) as Buffer;
   } catch (err) {
     console.error(err);
     throw err;
