@@ -4,7 +4,7 @@ import { Queues } from "../sqs";
 
 const sqs = new aws.sdk.SQS({ region: "ap-southeast-2" });
 
-export const apiGateway = new awsx.apigateway.API("api", {
+export const apiGateway = new awsx.apigateway.API("reportApi", {
   routes: [
     {
       path: "/pdf",

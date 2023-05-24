@@ -2,11 +2,13 @@
     "name": "pdf-generator",
     "main": "index.ts",
     "devDependencies": {
-        "@types/node": "^14"
+        "@types/node": "^14",
+        "@types/nodemailer": "^6.4.7"
     },
     "dependencies": {
-        "@pulumi/pulumi": "^3.0.0",
         "@pulumi/aws": "^5.0.0",
-        "@pulumi/awsx": "^0.40.0"
+        "@pulumi/awsx": "^0.40.0",
+        "@pulumi/pulumi": "^3.0.0",
+        "nodemailer": "^6.9.1"
     }
 }

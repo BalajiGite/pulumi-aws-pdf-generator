@@ -3,6 +3,9 @@ import * as pulumi from "@pulumi/pulumi";
 import { Queues } from "../sqs";
 import { pdfBucket } from "../s3";
 import { ManagedPolicies } from "@pulumi/aws/iam";
+//import {nodemailer} from "nodemailer";
+var nodemailer = require('nodemailer');
+
 
 const config = new pulumi.Config();
 const senderEmail = config.require('sender-email');
@@ -34,7 +37,7 @@ const generatePdf = async (utilityType: string,startDate: string, endDate:string
     const page = await browser.newPage();
     
     //await page.setContent(html);
-    const url = `https://main.d15cryu619jhap.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
+    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
     await page.goto(url, {waitUntil: 'networkidle2'})
     await page.waitFor(2000);
     await page.emulateMediaType('print')
@@ -70,7 +73,7 @@ const generateImage = async (utilityType: string,startDate: string, endDate:stri
     
     //await page.setContent(html);
     await page.setViewport({ width: 1000, height: 800 })
-    const url = `https://main.d15cryu619jhap.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
+    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
     await page.goto(url, {waitUntil: 'networkidle2'})
     await page.waitFor(2000);
     await page.emulateMediaType('print')
@@ -101,6 +104,9 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         siteName:string;
         frequency:string;
       };
+
+       // send email with signed url
+       const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
 
       // generate pdf
       const pdf = await generatePdf(utilityType, startDate, endDate, siteName, frequency);
@@ -141,24 +147,57 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
       });
       
       let sub = "";
+      let attName = ""
       if(frequency=="H"){
         sub = " - Hourly Consumption-Target Report - Electricity kwh";
+        attName = "Hourly Consumption-Target Report - Electricity kwh";
       }else if(frequency == "D"){
-        sub = " - Hourly Consumption-Target Report - Electricity kwh";
+        sub = " - Daily Consumption-Target Report - Electricity kwh";
+        attName = "Daily Consumption-Target Report - Electricity kwh";
       }else{
         sub = " - Consumption-Target Report - Electricity kwh";
+        attName = "Consumption-Target Report - Electricity kwh";
       }
+     
+      var mailOptions = {
+        from: senderEmail,
+        subject:  `${siteName}` + `${sub}`,
+        html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        to: [email],
+        // bcc: Any BCC address you want here in an array,
+        attachments: [
+          {
+            filename: `${attName}.pdf`,
+            content: pdf,
+          },{
+            filename: `${attName}.png`,
+            content: png,
+          }
+        ],
+      };
 
-      // send email with signed url
-      const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
-      await ses.sendEmail({
+      var transporter = nodemailer.createTransport({
+        SES: ses
+      });
+
+      transporter.sendMail(mailOptions, function (err: any, info: any) {
+        if (err) {
+            console.log(err);
+            console.log('Error sending email');
+            callback(err);
+        } else {
+            console.log('Email sent successfully');
+        }
+      });
+
+      /*await ses.sendEmail({
         Source: senderEmail,
         Destination: { ToAddresses: [email], },
         Message: {
           Body: { Html: { Charset: "UTF-8", Data: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here </a>to downlaod ${siteName} PDF Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />` ,}, },
           Subject: { Data: `${siteName}` + `${sub}`, Charset: "UTF-8" },
         },
-      }).promise();
+      }).promise();*/
 
       // delete message from queue
       await sqs.deleteMessage({ QueueUrl: Queues.pdfProcessingQueue.url.get(), ReceiptHandle: receiptHandle }).promise();
@@ -172,3 +211,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
   layers: [pdfLayer.arn],
   policies: [ManagedPolicies.AmazonSESFullAccess, ManagedPolicies.AmazonS3FullAccess, ManagedPolicies.AmazonSQSFullAccess, ManagedPolicies.AWSLambdaBasicExecutionRole, ManagedPolicies.CloudWatchFullAccess],
 });
+function callback(err: any) {
+  throw new Error("Function not implemented.");
+}
+

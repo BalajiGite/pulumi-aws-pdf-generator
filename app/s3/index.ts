@@ -2,8 +2,8 @@ import * as aws from "@pulumi/aws";
 
 const provider = new aws.Provider("provider", { region: 'eu-central-1' });
 
-export const pdfBucket = new aws.s3.Bucket("pdf-bucket-big", {
-    bucket: "pdf-bucket-big",
+export const pdfBucket = new aws.s3.Bucket("report-pdf-bucket", {
+    bucket: "report-pdf-bucket",
     acl: 'private',
     policy: JSON.stringify({
         Version: "2012-10-17",
