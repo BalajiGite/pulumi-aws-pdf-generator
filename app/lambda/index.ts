@@ -96,14 +96,15 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
     const processedEventPromises = event.Records.map(async (record) => {
       const { messageId, body, receiptHandle } = record;
       const {emailToList, emailCcList,  emailBccList, emailSubject, emailBody, linkToRepFile  } = JSON.parse(body) as {
-        emailToList: object;
-        emailCcList: object;
-        emailBccList: object;
+        emailToList: Array<string>;
+        emailCcList: Array<string>;
+        emailBccList: Array<string>;
         emailSubject:string;
-        emailBody:object;
+        emailBody:string;
         linkToRepFile:string;
       };
 
+      console.log(emailToList);
        // send email with signed url
        const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
 
