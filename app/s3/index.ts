@@ -26,6 +26,42 @@ export const pdfBucket = new aws.s3.Bucket("report-pdf-bucket", {
                 Action: 's3:GetObject',
                 Resource: `arn:aws:s3:::pdf-bucket-big/pdf/*`
             },
+            {
+                Sid: 'AllowPutObjectForLambda',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'lambda.amazonaws.com'
+                },
+                Action: 's3:PutObject',
+                Resource: `arn:aws:s3:::pdf-bucket-big/json/*`
+            },
+            {
+                Sid: 'AllowGetObjectForLambda',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'lambda.amazonaws.com'
+                },
+                Action: 's3:GetObject',
+                Resource: `arn:aws:s3:::pdf-bucket-big/json/*`
+            },
+            {
+                Sid: 'AllowPutObjectForLambda',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'lambda.amazonaws.com'
+                },
+                Action: 's3:PutObject',
+                Resource: `arn:aws:s3:::pdf-bucket-big/png/*`
+            },
+            {
+                Sid: 'AllowGetObjectForLambda',
+                Effect: 'Allow',
+                Principal: {
+                    Service: 'lambda.amazonaws.com'
+                },
+                Action: 's3:GetObject',
+                Resource: `arn:aws:s3:::pdf-bucket-big/png/*`
+            },
         ],
     }),
 }, { provider });
