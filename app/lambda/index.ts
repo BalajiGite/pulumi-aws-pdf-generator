@@ -19,7 +19,7 @@ const pdfLayer = new aws.lambda.LayerVersion("pdfLayer", {
 
 const sqs = new aws.sdk.SQS({ region: "ap-southeast-2" });
 
-const generatePdf = async (utilityType: string,startDate: string, endDate:string,siteName:string,frequency:string ): Promise<Buffer> => {
+const generatePdf = async (linkToRepFile:string ): Promise<Buffer> => {
   const chromium = require('chrome-aws-lambda');
   let browser: any = undefined;
   try {
@@ -36,7 +36,7 @@ const generatePdf = async (utilityType: string,startDate: string, endDate:string
     const page = await browser.newPage();
     
     //await page.setContent(html);
-    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
+    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?linktoreport=${linkToRepFile}`
     await page.goto(url, {waitUntil: 'networkidle2'})
     await page.waitFor(2000);
     await page.emulateMediaType('print')
@@ -54,7 +54,7 @@ const generatePdf = async (utilityType: string,startDate: string, endDate:string
   }
 };
 
-const generateImage = async (utilityType: string,startDate: string, endDate:string,siteName:string,frequency:string ): Promise<Buffer> => {
+const generateImage = async (linkToRepFile:string ): Promise<Buffer> => {
   const chromium = require('chrome-aws-lambda');
   let browser: any = undefined;
   try {
@@ -72,7 +72,7 @@ const generateImage = async (utilityType: string,startDate: string, endDate:stri
     
     //await page.setContent(html) from UI;
     await page.setViewport({ width: 1000, height: 800 })
-    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
+    const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?linktoreport=${linkToRepFile}`
     await page.goto(url, {waitUntil: 'networkidle2'})
     await page.waitFor(2000);
     await page.emulateMediaType('print')
@@ -95,27 +95,27 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
   callback: async (event: aws.sqs.QueueEvent) => {
     const processedEventPromises = event.Records.map(async (record) => {
       const { messageId, body, receiptHandle } = record;
-      const {email, utilityType,  startDate, endDate, siteName, frequency  } = JSON.parse(body) as {
-        email: string;
-        utilityType: string;
-        startDate: string;
-        endDate:string;
-        siteName:string;
-        frequency:string;
+      const {emailToList, emailCcList,  emailBccList, emailSubject, emailBody, linkToRepFile  } = JSON.parse(body) as {
+        emailToList: object;
+        emailCcList: object;
+        emailBccList: object;
+        emailSubject:string;
+        emailBody:object;
+        linkToRepFile:string;
       };
 
        // send email with signed url
        const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
 
       // generate pdf
-      const pdf = await generatePdf(utilityType, startDate, endDate, siteName, frequency);
+      const pdf = await generatePdf(linkToRepFile);
       const pdfName = `${messageId}.pdf`;
 
-      const png = await generateImage(utilityType, startDate, endDate, siteName, frequency);
+      const png = await generateImage(linkToRepFile);
       const pngName = `${messageId}.png`;
 
       // upload pdf to s3
-      const s3 = new aws.sdk.S3({ region: "eu-central-1" });
+      const s3 = new aws.sdk.S3({ region: "ap-southeast-2" });
       await s3.putObject({
         Bucket: pdfBucket.bucket.get(),
         Key: `pdf/${pdfName}`,
@@ -128,7 +128,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
        const signedUrl = await s3.getSignedUrlPromise("getObject", {
         Bucket: pdfBucket.bucket.get(),
         Key: `pdf/${pdfName}`,
-        Expires: 60 * 60 * 24 * 7, // 7 days
+        Expires: 60 * 60 * 24 * 30, // 7 days
       });
 
       await s3.putObject({
@@ -142,33 +142,22 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
       const signedUrlPng = await s3.getSignedUrlPromise("getObject", {
         Bucket: pdfBucket.bucket.get(),
         Key: `png/${pngName}`,
-        Expires: 60 * 60 * 24 * 7, // 7 days
+        Expires: 60 * 60 * 24 * 30, // 7 days
       });
       
-      let sub = "";
-      let attName = ""
-      if(frequency=="H"){
-        sub = " - Hourly Consumption-Target Report - Electricity kwh";
-        attName = "Hourly Consumption-Target Report - Electricity kwh";
-      }else if(frequency == "D"){
-        sub = " - Daily Consumption-Target Report - Electricity kwh";
-        attName = "Daily Consumption-Target Report - Electricity kwh";
-      }else{
-        sub = " - Consumption-Target Report - Electricity kwh";
-        attName = "Consumption-Target Report - Electricity kwh";
-      }
-     
+      
       var mailOptions = {
         from: senderEmail,
-        subject:  `${siteName}` + `${sub}`,
+        subject:  `${emailSubject}`,
         //html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
         html: `<p style="font-size:16px"></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
         
-        to: [email],
-        // bcc: Any BCC address you want here in an array,
+        to: emailToList,
+        cc:emailCcList,
+        bcc: emailBccList,
         attachments: [
           {
-            filename: `${attName}.pdf`,
+            filename: `${pdfName}.pdf`,
             content: pdf,
           }/*,{
             filename: `${attName}.png`,
