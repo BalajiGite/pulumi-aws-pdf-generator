@@ -6,7 +6,6 @@ import { ManagedPolicies } from "@pulumi/aws/iam";
 //import {nodemailer} from "nodemailer";
 var nodemailer = require('nodemailer');
 
-
 const config = new pulumi.Config();
 const senderEmail = config.require('sender-email');
 
@@ -71,7 +70,7 @@ const generateImage = async (utilityType: string,startDate: string, endDate:stri
     // create a new page
     const page = await browser.newPage();
     
-    //await page.setContent(html);
+    //await page.setContent(html) from UI;
     await page.setViewport({ width: 1000, height: 800 })
     const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?startDate=${startDate}&endDate=${endDate}&frequency=${frequency}&site=${siteName}&utilityType=${utilityType}`
     await page.goto(url, {waitUntil: 'networkidle2'})
@@ -162,17 +161,19 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
       var mailOptions = {
         from: senderEmail,
         subject:  `${siteName}` + `${sub}`,
-        html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        //html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        html: `<p style="font-size:16px"></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        
         to: [email],
         // bcc: Any BCC address you want here in an array,
         attachments: [
           {
             filename: `${attName}.pdf`,
             content: pdf,
-          },{
+          }/*,{
             filename: `${attName}.png`,
             content: png,
-          }
+          }*/
         ],
       };
 
@@ -207,7 +208,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
   },
   memorySize: 3072,
   runtime: aws.lambda.Runtime.NodeJS14dX,
-  timeout: 30,
+  timeout: 120,
   layers: [pdfLayer.arn],
   policies: [ManagedPolicies.AmazonSESFullAccess, ManagedPolicies.AmazonS3FullAccess, ManagedPolicies.AmazonSQSFullAccess, ManagedPolicies.AWSLambdaBasicExecutionRole, ManagedPolicies.CloudWatchFullAccess],
 });
