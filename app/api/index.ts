@@ -11,11 +11,11 @@ export const apiGateway = new awsx.apigateway.API("reportApi", {
       method: "POST",
       eventHandler: async (event) => {
         // client passes email and content to add to pdf
-        const { email, utilityType, startDate, endDate, siteName, frequency } = JSON.parse(event.body || "{}");
+        const { emailToList, emailCcList,  emailBccList, emailSubject, emailBody, linkToRepFile } = JSON.parse(event.body || "{}");
 
         // construct message to send to SQS
         const sqsParams = {
-          MessageBody: JSON.stringify({ email, utilityType, startDate, endDate, siteName, frequency }),
+          MessageBody: JSON.stringify({ emailToList, emailCcList,  emailBccList, emailSubject, emailBody, linkToRepFile }),
           QueueUrl: Queues.pdfProcessingQueue.url.get(),
         };
 
