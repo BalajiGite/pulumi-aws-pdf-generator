@@ -151,14 +151,14 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         from: senderEmail,
         subject:  `${emailSubject}`,
         //html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
-        html: `<p style="font-size:16px"></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        html: `<p style="font-size:16px"><b>${emailBody}<b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
         
         to: emailToList,
         cc:emailCcList,
         bcc: emailBccList,
         attachments: [
           {
-            filename: `${pdfName}.pdf`,
+            filename: `${emailSubject}.pdf`,
             content: pdf,
           }/*,{
             filename: `${attName}.png`,
@@ -168,7 +168,15 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
       };
 
       var transporter = nodemailer.createTransport({
-        SES: ses
+        //SES: ses
+        host: 'email-smtp.ap-southeast-2.amazonaws.com',
+        port: 587,
+        secure: false,
+        requireTLS: true,
+        auth: {
+            user: 'AKIA56UE5WHAGVCIAFOW',
+            pass: 'BIIpsYbQcphH5AgALR/kRNmZpSdazY6ZfoXCIkOwK7yQ'
+        }
       });
 
       transporter.sendMail(mailOptions, function (err: any, info: any) {
