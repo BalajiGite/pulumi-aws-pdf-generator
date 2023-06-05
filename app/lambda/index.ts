@@ -143,7 +143,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
       const signedUrlPng = await s3.getSignedUrlPromise("getObject", {
         Bucket: pdfBucket.bucket.get(),
         Key: `png/${pngName}`,
-        Expires: 60 * 60 * 24 * 30, // 7 days
+        Expires: 60 * 60 * 24 * 30, // 30 days
       });
       
       
