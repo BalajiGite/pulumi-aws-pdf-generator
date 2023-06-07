@@ -5,6 +5,7 @@ import { pdfBucket } from "../s3";
 import { ManagedPolicies } from "@pulumi/aws/iam";
 //import {nodemailer} from "nodemailer";
 var nodemailer = require('nodemailer');
+var smtpTransport = require('nodemailer-smtp-transport');
 
 const config = new pulumi.Config();
 const senderEmail = config.require('sender-email');
@@ -38,7 +39,7 @@ const generatePdf = async (linkToRepFile:string ): Promise<Buffer> => {
     //await page.setContent(html);
     const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?linktoreport=${linkToRepFile}`
     await page.goto(url, {waitUntil: 'networkidle2'})
-    await page.waitFor(2000);
+    await page.waitFor(1000);
     await page.emulateMediaType('print')
     await page.emulateMediaType('screen')
     // generate the pdf as a buffer and return it
@@ -71,10 +72,10 @@ const generateImage = async (linkToRepFile:string ): Promise<Buffer> => {
     const page = await browser.newPage();
     
     //await page.setContent(html) from UI;
-    await page.setViewport({ width: 1000, height: 800 })
+    await page.setViewport({ width: 790, height: 800 })
     const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?linktoreport=${linkToRepFile}`
     await page.goto(url, {waitUntil: 'networkidle2'})
-    await page.waitFor(2000);
+    await page.waitFor(1000);
     await page.emulateMediaType('print')
     await page.emulateMediaType('screen')
     
@@ -152,7 +153,6 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         subject:  `${emailSubject}`,
         //html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
         html: `<p style="font-size:16px"><b>${emailBody}<b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
-        
         to: emailToList,
         cc:emailCcList,
         bcc: emailBccList,
@@ -160,13 +160,11 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
           {
             filename: `${emailSubject}.pdf`,
             content: pdf,
-          }/*,{
-            filename: `${attName}.png`,
-            content: png,
-          }*/
+          }
         ],
       };
 
+      //added transporter
       var transporter = nodemailer.createTransport({
         //SES: ses
         host: 'email-smtp.ap-southeast-2.amazonaws.com',
@@ -179,7 +177,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         }
       });
 
-      transporter.sendMail(mailOptions, function (err: any, info: any) {
+      await transporter.sendMail(mailOptions, function (err: any, info: any) {
         if (err) {
             console.log(err);
             console.log('Error sending email');
@@ -187,7 +185,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         } else {
             console.log('Email sent successfully');
         }
-      });
+      }).promise();
 
       /*await ses.sendEmail({
         Source: senderEmail,
@@ -204,13 +202,13 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
     });
     await Promise.all(processedEventPromises);
   },
-  memorySize: 3072,
+  memorySize: 5072,
   runtime: aws.lambda.Runtime.NodeJS14dX,
-  timeout: 120,
+  timeout: 300,
   layers: [pdfLayer.arn],
   policies: [ManagedPolicies.AmazonSESFullAccess, ManagedPolicies.AmazonS3FullAccess, ManagedPolicies.AmazonSQSFullAccess, ManagedPolicies.AWSLambdaBasicExecutionRole, ManagedPolicies.CloudWatchFullAccess],
 });
 function callback(err: any) {
-  throw new Error("Function not implemented.");
+  throw new Error(err);
 }
 
