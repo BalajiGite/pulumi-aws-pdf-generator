@@ -179,6 +179,40 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         ],
       };
 
+      return new Promise((resolve,reject)=>{
+        var transporter = nodemailer.createTransport({
+          //SES: ses
+          host: 'email-smtp.ap-southeast-2.amazonaws.com',
+          port: 587,
+          secure: false,
+          requireTLS: true,
+          auth: {
+              user: 'AKIA56UE5WHAGVCIAFOW',
+              pass: 'BIIpsYbQcphH5AgALR/kRNmZpSdazY6ZfoXCIkOwK7yQ'
+          }
+        });
+
+       let resp=false;
+       
+       transporter.sendMail(mailOptions, function(error: string, info: { response: string; }){
+           if (error) {
+               console.log("error is "+error);
+              resolve(false); // or use rejcet(false) but then you will have to handle errors
+           } 
+          else {
+              console.log('Email sent: ' + info.response);
+              resolve(true);
+           }
+          });
+
+          s3.deleteObject({
+            Bucket: 'gems2jsonreports',
+            Key: 'lambdaExecutionLocks/emailSendingLock.txt'
+          });
+      })  
+       
+
+      /*
       //added transporter
       var transporter = nodemailer.createTransport({
         //SES: ses
@@ -208,18 +242,11 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         Key: 'lambdaExecutionLocks/emailSendingLock.txt'
       }).promise();
 
-      /*await ses.sendEmail({
-        Source: senderEmail,
-        Destination: { ToAddresses: [email], },
-        Message: {
-          Body: { Html: { Charset: "UTF-8", Data: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here </a>to downlaod ${siteName} PDF Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />` ,}, },
-          Subject: { Data: `${siteName}` + `${sub}`, Charset: "UTF-8" },
-        },
-      }).promise();*/
+ 
 
       // delete message from queue
       await sqs.deleteMessage({ QueueUrl: Queues.pdfProcessingQueue.url.get(), ReceiptHandle: receiptHandle }).promise();
-      console.log(`Deleted message ${messageId} from queue`);
+      console.log(`Deleted message ${messageId} from queue`); */
     });
     await Promise.all(processedEventPromises);
   },
