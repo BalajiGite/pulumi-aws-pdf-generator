@@ -72,7 +72,7 @@ const generateImage = async (linkToRepFile:string ): Promise<Buffer> => {
     const page = await browser.newPage();
     
     //await page.setContent(html) from UI;
-    await page.setViewport({ width: 790, height: 800 })
+    await page.setViewport({ width: 795, height: 800 })
     const url = `https://main.d1oiqip01l7i2k.amplifyapp.com/dashboard?linktoreport=${linkToRepFile}`
     await page.goto(url, {waitUntil: 'networkidle2'})
     await page.waitFor(1000);
@@ -107,7 +107,7 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
 
       console.log(emailToList);
        // send email with signed url
-       const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
+       //const ses = new aws.sdk.SES({ region: "ap-southeast-2" });
 
       // generate pdf
       const pdf = await generatePdf(linkToRepFile);
@@ -118,6 +118,15 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
 
       // upload pdf to s3
       const s3 = new aws.sdk.S3({ region: "ap-southeast-2" });
+
+      //upload blank textFile in s3
+      await s3.putObject({
+        Bucket: 'gems2jsonreports',
+        Key: 'lambdaExecutionLocks/emailSendingLock.txt',
+        Body: Buffer.from('Hello', 'utf8'),
+        ContentType: "application/text",
+      }).promise();
+
       await s3.putObject({
         Bucket: pdfBucket.bucket.get(),
         Key: `pdf/${pdfName}`,
@@ -152,7 +161,9 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         from: senderEmail,
         subject:  `${emailSubject}`,
         //html: `<p style="font-size:16px"><b>Click <a href="${signedUrl}">here</a> to downlaod ${siteName} Report. <b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
-        html: `<p style="font-size:16px"><b>${emailBody}<b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        //html: `<p style="font-size:16px"><b>${emailBody}<b></p><br/><img src=\"${signedUrlPng}\"" alt="Energy app" />`,
+        html: `<p style="font-size:16px"><b>${emailBody}<b></p><br/><img src="cid:bigimg@gegroup.com.au" alt="Energy app" />`,
+        
         to: emailToList,
         cc:emailCcList,
         bcc: emailBccList,
@@ -160,6 +171,10 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
           {
             filename: `${emailSubject}.pdf`,
             content: pdf,
+          },{
+            filename: `${emailSubject}.png`,
+            content: png,
+            cid: 'bigimg@gegroup.com.au'
           }
         ],
       };
@@ -185,6 +200,12 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
         } else {
             console.log('Email sent successfully');
         }
+      }).promise();
+
+      //upload blank textFile in s3
+      await s3.deleteObject({
+        Bucket: 'gems2jsonreports',
+        Key: 'lambdaExecutionLocks/emailSendingLock.txt'
       }).promise();
 
       /*await ses.sendEmail({
