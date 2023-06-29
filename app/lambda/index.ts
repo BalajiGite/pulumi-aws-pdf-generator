@@ -205,10 +205,11 @@ export const pdfProcessingLambda = new aws.lambda.CallbackFunction("pdfProcessin
            }
           });
 
-          s3.deleteObject({
-            Bucket: 'gems2jsonreports',
-            Key: 'lambdaExecutionLocks/emailSendingLock.txt'
-          });
+          var params = {  Bucket: 'gems2jsonreports', Key: 'lambdaExecutionLocks/emailSendingLock.txt' };
+          s3.deleteObject(params, function(err, data) {
+            if (err) console.log(err, err.stack);  // error
+            else     console.log();                 // deleted
+          }).promise();
       })  
        
 
